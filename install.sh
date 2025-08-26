@@ -34,13 +34,17 @@ warn() {
 # root
 [[ $EUID != 0 ]] && err "当前非 ${yellow}ROOT用户.${none}"
 
-# yum or apt-get, ubuntu/debian/centos
-cmd=$(type -P apt-get || type -P yum)
-[[ ! $cmd ]] && err "此脚本仅支持 ${yellow}(Ubuntu or Debian or CentOS)${none}."
+# yum or apt-get or pacman, ubuntu/debian/centos/arch
+cmd=$(type -P apt-get || type -P yum || type -P pacman)
+[[ ! $cmd ]] && err "此脚本仅支持 ${yellow}(Ubuntu or Debian or CentOS or Arch)${none}."
 
 # systemd
 [[ ! $(type -P systemctl) ]] && {
-    err "此系统缺少 ${yellow}(systemctl)${none}, 请尝试执行:${yellow} ${cmd} update -y;${cmd} install systemd -y ${none}来修复此错误."
+    if [[ $cmd =~ pacman ]]; then
+        err "此系统缺少 ${yellow}(systemctl)${none}, 请尝试执行:${yellow} ${cmd} -Sy --noconfirm systemd ${none}来修复此错误."
+    else
+        err "此系统缺少 ${yellow}(systemctl)${none}, 请尝试执行:${yellow} ${cmd} update -y;${cmd} install systemd -y ${none}来修复此错误."
+    fi
 }
 
 # wget installed or none
@@ -141,14 +145,19 @@ install_pkg() {
     if [[ $cmd_not_found ]]; then
         pkg=$(echo $cmd_not_found | sed 's/,/ /g')
         msg warn "安装依赖包 >${pkg}"
-        $cmd install -y $pkg &>/dev/null
-        if [[ $? != 0 ]]; then
-            [[ $cmd =~ yum ]] && yum install epel-release -y &>/dev/null
-            $cmd update -y &>/dev/null
-            $cmd install -y $pkg &>/dev/null
+        if [[ $cmd =~ pacman ]]; then
+            $cmd -Sy --noconfirm $pkg &>/dev/null
             [[ $? == 0 ]] && >$is_pkg_ok
         else
-            >$is_pkg_ok
+            $cmd install -y $pkg &>/dev/null
+            if [[ $? != 0 ]]; then
+                [[ $cmd =~ yum ]] && yum install epel-release -y &>/dev/null
+                $cmd update -y &>/dev/null
+                $cmd install -y $pkg &>/dev/null
+                [[ $? == 0 ]] && >$is_pkg_ok
+            else
+                >$is_pkg_ok
+            fi
         fi
     else
         >$is_pkg_ok
@@ -198,7 +207,11 @@ check_status() {
     # dependent pkg install fail
     [[ ! -f $is_pkg_ok ]] && {
         msg err "安装依赖包失败"
-        msg err "请尝试手动安装依赖包: $cmd update -y; $cmd install -y $pkg"
+        if [[ $cmd =~ pacman ]]; then
+            msg err "请尝试手动安装依赖包: $cmd -Sy --noconfirm $pkg"
+        else
+            msg err "请尝试手动安装依赖包: $cmd update -y; $cmd install -y $pkg"
+        fi
         is_fail=1
     }
 

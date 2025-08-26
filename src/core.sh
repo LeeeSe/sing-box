@@ -195,7 +195,11 @@ is_port_used() {
     fi
     is_cant_test_port=1
     msg "$is_warn 无法检测端口是否可用."
-    msg "请执行: $(_yellow "${cmd} update -y; ${cmd} install net-tools -y") 来修复此问题."
+    if [[ $cmd =~ pacman ]]; then
+        msg "请执行: $(_yellow "${cmd} -Sy --noconfirm net-tools") 来修复此问题."
+    else
+        msg "请执行: $(_yellow "${cmd} update -y; ${cmd} install net-tools -y") 来修复此问题."
+    fi
 }
 
 # ask input a string or pick a option for list.
@@ -1424,7 +1428,11 @@ url_qr() {
             if [[ $(type -P qrencode) ]]; then
                 qrencode -t ANSI "${is_url}"
             else
-                msg "请安装 qrencode: $(_green "$cmd update -y; $cmd install qrencode -y")"
+                if [[ $cmd =~ pacman ]]; then
+                    msg "请安装 qrencode: $(_green "$cmd -Sy --noconfirm qrencode")"
+                else
+                    msg "请安装 qrencode: $(_green "$cmd update -y; $cmd install qrencode -y")"
+                fi
             fi
             msg
             msg "如果无法正常显示或识别, 请使用下面的链接来生成二维码:"
