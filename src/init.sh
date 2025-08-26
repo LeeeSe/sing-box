@@ -62,7 +62,7 @@ _wget() {
 cmd=$(type -P apt-get || type -P yum || type -P pacman)
 
 # x64
-case $(arch) in
+case $(uname -m) in
 amd64 | x86_64)
     is_arch="amd64"
     ;;
